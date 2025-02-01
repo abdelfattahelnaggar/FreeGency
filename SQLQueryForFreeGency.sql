@@ -1,35 +1,37 @@
--- Create the database
+-- Create the FreeGency Database
 CREATE DATABASE FreeGency;
 GO
 
+-- Use the FreeGency Database
 USE FreeGency;
 GO
 
--- 1. Users Table
+-- Create Users Table
 CREATE TABLE Users (
     UserID INT PRIMARY KEY IDENTITY(1,1),
     UserName NVARCHAR(100) UNIQUE NOT NULL,
     UserPassword NVARCHAR(255) NOT NULL,
     Email NVARCHAR(100) UNIQUE NOT NULL,
-    Role NVARCHAR(50) NOT NULL, -- Client, TeamLeader, TeamMember
+    Role NVARCHAR(50) NOT NULL, -- Client, Team Leader, Team Member
     Created_At DATETIME NOT NULL DEFAULT GETDATE(),
     ProfileImageURL NVARCHAR(255),
-    isTeamMember BIT NOT NULL DEFAULT 0 -- 0 = Not a team member, 1 = Team member
+    TeamCount INT NOT NULL DEFAULT 0 -- Tracks number of teams joined
 );
 GO
 
--- 2. Teams Table
+-- Create Teams Table
 CREATE TABLE Teams (
     TeamID INT PRIMARY KEY IDENTITY(1,1),
     TeamName NVARCHAR(100) NOT NULL,
     LeaderID INT NOT NULL,
     TeamCode NVARCHAR(16) UNIQUE NOT NULL, -- 16-character team code
     Description NVARCHAR(255),
+    Created_At DATETIME NOT NULL DEFAULT GETDATE(),
     FOREIGN KEY (LeaderID) REFERENCES Users(UserID)
 );
 GO
 
--- 3. TeamMembers Table
+-- Create TeamMembers Table
 CREATE TABLE TeamMembers (
     TeamID INT NOT NULL,
     UserID INT NOT NULL,
@@ -40,69 +42,73 @@ CREATE TABLE TeamMembers (
 );
 GO
 
--- 4. Projects Table
+-- Create Projects Table
 CREATE TABLE Projects (
     ProjectID INT PRIMARY KEY IDENTITY(1,1),
     ClientID INT NOT NULL,
     Title NVARCHAR(100) NOT NULL,
     Description NVARCHAR(255),
     Budget DECIMAL(10, 2),
-    Status NVARCHAR(50) NOT NULL DEFAULT 'Open', -- Open, In Progress, Completed
+    Status NVARCHAR(50) NOT NULL, -- Open, In Progress, Completed
     TrelloBoardID NVARCHAR(100), -- Trello Board ID for task management
+    Created_At DATETIME NOT NULL DEFAULT GETDATE(),
     FOREIGN KEY (ClientID) REFERENCES Users(UserID)
 );
 GO
 
--- 5. Applications Table
+-- Create Applications Table
 CREATE TABLE Applications (
     ApplicationID INT PRIMARY KEY IDENTITY(1,1),
     TeamID INT NOT NULL,
     ProjectID INT NOT NULL,
-    Status NVARCHAR(50) NOT NULL DEFAULT 'Pending', -- Pending, Accepted, Rejected
+    Status NVARCHAR(50) NOT NULL, -- Pending, Accepted, Rejected
+    Applied_At DATETIME NOT NULL DEFAULT GETDATE(),
     FOREIGN KEY (TeamID) REFERENCES Teams(TeamID),
     FOREIGN KEY (ProjectID) REFERENCES Projects(ProjectID)
 );
 GO
 
--- 6. Tasks Table
-CREATE TABLE Tasks (
-    TaskID INT PRIMARY KEY IDENTITY(1,1),
-    ProjectID INT NOT NULL,
-    TaskDescription NVARCHAR(255) NOT NULL,
-    DueDate DATETIME NOT NULL,
-    Status NVARCHAR(50) NOT NULL DEFAULT 'Pending', -- Pending, In Progress, Completed
-    FOREIGN KEY (ProjectID) REFERENCES Projects(ProjectID)
+-- Create JobAnnouncements Table
+CREATE TABLE JobAnnouncements (
+    JobID INT PRIMARY KEY IDENTITY(1,1),
+    TeamID INT NOT NULL,
+    Title NVARCHAR(100) NOT NULL,
+    Description NVARCHAR(255),
+    Posted_At DATETIME NOT NULL DEFAULT GETDATE(),
+    FOREIGN KEY (TeamID) REFERENCES Teams(TeamID)
 );
 GO
 
--- 7. TaskAssignments Table
-CREATE TABLE TaskAssignments (
-    TaskAssignmentID INT PRIMARY KEY IDENTITY(1,1),
-    TaskID INT NOT NULL,
+-- Create JobApplications Table
+CREATE TABLE JobApplications (
+    JobApplicationID INT PRIMARY KEY IDENTITY(1,1),
+    JobID INT NOT NULL,
     UserID INT NOT NULL,
-    FOREIGN KEY (TaskID) REFERENCES Tasks(TaskID),
+    CV_URL NVARCHAR(255) NOT NULL,
+    Applied_At DATETIME NOT NULL DEFAULT GETDATE(),
+    FOREIGN KEY (JobID) REFERENCES JobAnnouncements(JobID),
     FOREIGN KEY (UserID) REFERENCES Users(UserID)
 );
 GO
 
--- 8. Payments Table
+-- Create Payments Table
 CREATE TABLE Payments (
     PaymentID INT PRIMARY KEY IDENTITY(1,1),
     ClientID INT NOT NULL,
     TeamID INT NOT NULL,
     Amount DECIMAL(10, 2) NOT NULL,
-    Status NVARCHAR(50) NOT NULL DEFAULT 'Pending', -- Pending, Completed, Refunded
+    Status NVARCHAR(50) NOT NULL, -- Pending, Completed, Failed
     Timestamp DATETIME NOT NULL DEFAULT GETDATE(),
     FOREIGN KEY (ClientID) REFERENCES Users(UserID),
     FOREIGN KEY (TeamID) REFERENCES Teams(TeamID)
 );
 GO
 
--- 9. Transactions Table
+-- Create Transactions Table
 CREATE TABLE Transactions (
     TransactionID INT PRIMARY KEY IDENTITY(1,1),
     PaymentID INT NOT NULL,
-    Type NVARCHAR(50) NOT NULL, -- Payment, Refund
+    Type NVARCHAR(50) NOT NULL, -- Credit, Debit
     Amount DECIMAL(10, 2) NOT NULL,
     Status NVARCHAR(50) NOT NULL, -- Success, Failed
     Timestamp DATETIME NOT NULL DEFAULT GETDATE(),
@@ -110,7 +116,7 @@ CREATE TABLE Transactions (
 );
 GO
 
--- 10. Reviews Table
+-- Create Reviews Table
 CREATE TABLE Reviews (
     ReviewID INT PRIMARY KEY IDENTITY(1,1),
     ReviewerID INT NOT NULL, -- UserID of the reviewer (Client or Team Leader)
@@ -123,10 +129,16 @@ CREATE TABLE Reviews (
 );
 GO
 
--- 11. TrelloBoards Table
-CREATE TABLE TrelloBoards (
-    TrelloBoardID NVARCHAR(100) PRIMARY KEY,
-    ProjectID INT NOT NULL,
-    FOREIGN KEY (ProjectID) REFERENCES Projects(ProjectID)
-);
+-- Create Indexes for Faster Queries
+CREATE INDEX idx_Users_Email ON Users(Email);
+CREATE INDEX idx_Teams_TeamCode ON Teams(TeamCode);
+CREATE INDEX idx_Projects_ClientID ON Projects(ClientID);
+CREATE INDEX idx_Applications_TeamID ON Applications(TeamID);
+CREATE INDEX idx_JobApplications_UserID ON JobApplications(UserID);
+CREATE INDEX idx_Payments_ClientID ON Payments(ClientID);
+CREATE INDEX idx_Reviews_TeamID ON Reviews(TeamID);
+GO
+
+-- Print Success Message
+PRINT 'FreeGency database and tables created successfully!';
 GO
